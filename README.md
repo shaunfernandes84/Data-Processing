@@ -5,7 +5,6 @@ This project demonstrates how to build an **end-to-end automated data pipeline**
 ## 🚀 Architecture
 Blob Storage → Data Factory → Azure Function (validation) → Logic Apps (notification) → Success/Failed folders
 
-![Architecture](https://excalidraw.com/#json=UXFac_-TkvW65F0i2PPr1,Nwz4UiIVLmuhyqv631rHwA)
 
 ## 📂 Services Used
 - Azure Blob Storage
