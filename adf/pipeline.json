@@ -1,0 +1,395 @@
+{
+    "name": "Pipeline Sales Data Processing",
+    "properties": {
+        "activities": [
+            {
+                "name": "Get intermediate files",
+                "type": "GetMetadata",
+                "dependsOn": [
+                    {
+                        "activity": "For Each files in incoming folder",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "dataset": {
+                        "referenceName": "DelimitedText7",
+                        "type": "DatasetReference"
+                    },
+                    "fieldList": [
+                        "childItems"
+                    ],
+                    "storeSettings": {
+                        "type": "AzureBlobStorageReadSettings",
+                        "recursive": true,
+                        "enablePartitionDiscovery": false
+                    },
+                    "formatSettings": {
+                        "type": "DelimitedTextReadSettings"
+                    }
+                }
+            },
+            {
+                "name": "For Each intermediate file",
+                "type": "ForEach",
+                "dependsOn": [
+                    {
+                        "activity": "Get intermediate files",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "items": {
+                        "value": "@activity('Get incoming files').output.childItems",
+                        "type": "Expression"
+                    },
+                    "isSequential": true,
+                    "activities": [
+                        {
+                            "name": "Azure Function HttpTrigger1",
+                            "type": "AzureFunctionActivity",
+                            "dependsOn": [],
+                            "policy": {
+                                "timeout": "0.12:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "functionName": "HttpTrigger1",
+                                "body": {
+                                    "blobUrl": "@concat('https://<storage-account-name>.blob.core.windows.net/sales-files/intermediate/', item().name)"
+                                },
+                                "headers": {
+                                    "Content-Type": "application/json"
+                                },
+                                "method": "POST"
+                            },
+                            "linkedServiceName": {
+                                "referenceName": "AzureFunction1",
+                                "type": "LinkedServiceReference"
+                            }
+                        },
+                        {
+                            "name": "If result is passed",
+                            "type": "IfCondition",
+                            "dependsOn": [
+                                {
+                                    "activity": "Azure Function HttpTrigger1",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                }
+                            ],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "expression": {
+                                    "value": "@equals(activity('Azure Function HttpTrigger1').output.result, 'Passed')",
+                                    "type": "Expression"
+                                },
+                                "ifFalseActivities": [
+                                    {
+                                        "name": "Copy from intermediate to failure",
+                                        "type": "Copy",
+                                        "dependsOn": [],
+                                        "policy": {
+                                            "timeout": "0.12:00:00",
+                                            "retry": 0,
+                                            "retryIntervalInSeconds": 30,
+                                            "secureOutput": false,
+                                            "secureInput": false
+                                        },
+                                        "userProperties": [],
+                                        "typeProperties": {
+                                            "source": {
+                                                "type": "BinarySource",
+                                                "storeSettings": {
+                                                    "type": "AzureBlobStorageReadSettings",
+                                                    "recursive": true
+                                                },
+                                                "formatSettings": {
+                                                    "type": "BinaryReadSettings"
+                                                }
+                                            },
+                                            "sink": {
+                                                "type": "BinarySink",
+                                                "storeSettings": {
+                                                    "type": "AzureBlobStorageWriteSettings"
+                                                }
+                                            },
+                                            "enableStaging": false
+                                        },
+                                        "inputs": [
+                                            {
+                                                "referenceName": "Binary1",
+                                                "type": "DatasetReference",
+                                                "parameters": {
+                                                    "fileName": "@item().name",
+                                                    "folderPath": "intermediate"
+                                                }
+                                            }
+                                        ],
+                                        "outputs": [
+                                            {
+                                                "referenceName": "Binary1",
+                                                "type": "DatasetReference",
+                                                "parameters": {
+                                                    "fileName": "@item().name",
+                                                    "folderPath": "failure"
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "name": "send a failure mail on outlook",
+                                        "type": "WebActivity",
+                                        "dependsOn": [
+                                            {
+                                                "activity": "Copy from intermediate to failure",
+                                                "dependencyConditions": [
+                                                    "Succeeded"
+                                                ]
+                                            }
+                                        ],
+                                        "policy": {
+                                            "timeout": "0.12:00:00",
+                                            "retry": 0,
+                                            "retryIntervalInSeconds": 30,
+                                            "secureOutput": false,
+                                            "secureInput": false
+                                        },
+                                        "userProperties": [],
+                                        "typeProperties": {
+                                            "method": "POST",
+                                            "headers": {
+                                                "Content-Type": "application/json"
+                                            },
+                                            "url": "https://<logic-app-url>",
+                                            "body": {
+                                                "status": "failure"
+                                            }
+                                        }
+                                    }
+                                ],
+                                "ifTrueActivities": [
+                                    {
+                                        "name": "Copy from intermediate to success",
+                                        "type": "Copy",
+                                        "dependsOn": [],
+                                        "policy": {
+                                            "timeout": "0.12:00:00",
+                                            "retry": 0,
+                                            "retryIntervalInSeconds": 30,
+                                            "secureOutput": false,
+                                            "secureInput": false
+                                        },
+                                        "userProperties": [],
+                                        "typeProperties": {
+                                            "source": {
+                                                "type": "BinarySource",
+                                                "storeSettings": {
+                                                    "type": "AzureBlobStorageReadSettings",
+                                                    "recursive": true,
+                                                    "deleteFilesAfterCompletion": false
+                                                },
+                                                "formatSettings": {
+                                                    "type": "BinaryReadSettings"
+                                                }
+                                            },
+                                            "sink": {
+                                                "type": "BinarySink",
+                                                "storeSettings": {
+                                                    "type": "AzureBlobStorageWriteSettings"
+                                                }
+                                            },
+                                            "enableStaging": false
+                                        },
+                                        "inputs": [
+                                            {
+                                                "referenceName": "Binary1",
+                                                "type": "DatasetReference",
+                                                "parameters": {
+                                                    "fileName": "@item().name",
+                                                    "folderPath": "intermediate"
+                                                }
+                                            }
+                                        ],
+                                        "outputs": [
+                                            {
+                                                "referenceName": "Binary1",
+                                                "type": "DatasetReference",
+                                                "parameters": {
+                                                    "fileName": "@item().name",
+                                                    "folderPath": "success"
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "name": "send a success mail on outlook",
+                                        "type": "WebActivity",
+                                        "dependsOn": [
+                                            {
+                                                "activity": "Copy from intermediate to success",
+                                                "dependencyConditions": [
+                                                    "Succeeded"
+                                                ]
+                                            }
+                                        ],
+                                        "policy": {
+                                            "timeout": "0.12:00:00",
+                                            "retry": 0,
+                                            "retryIntervalInSeconds": 30,
+                                            "secureOutput": false,
+                                            "secureInput": false
+                                        },
+                                        "userProperties": [],
+                                        "typeProperties": {
+                                            "method": "POST",
+                                            "headers": {
+                                                "Content-Type": "application/json"
+                                            },
+                                            "url": "https://<logic-app-url>",
+                                            "body": {
+                                                "status": "success"
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "Get incoming files",
+                "type": "GetMetadata",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "dataset": {
+                        "referenceName": "DelimitedText8",
+                        "type": "DatasetReference"
+                    },
+                    "fieldList": [
+                        "childItems"
+                    ],
+                    "storeSettings": {
+                        "type": "AzureBlobStorageReadSettings",
+                        "recursive": true,
+                        "enablePartitionDiscovery": false
+                    },
+                    "formatSettings": {
+                        "type": "DelimitedTextReadSettings"
+                    }
+                }
+            },
+            {
+                "name": "For Each files in incoming folder",
+                "type": "ForEach",
+                "dependsOn": [
+                    {
+                        "activity": "Get incoming files",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "items": {
+                        "value": "@activity('Get incoming files').output.childItems",
+                        "type": "Expression"
+                    },
+                    "isSequential": true,
+                    "activities": [
+                        {
+                            "name": "Copy from incoming to intermediate",
+                            "type": "Copy",
+                            "dependsOn": [],
+                            "policy": {
+                                "timeout": "0.12:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "source": {
+                                    "type": "BinarySource",
+                                    "storeSettings": {
+                                        "type": "AzureBlobStorageReadSettings",
+                                        "recursive": true,
+                                        "deleteFilesAfterCompletion": false
+                                    },
+                                    "formatSettings": {
+                                        "type": "BinaryReadSettings"
+                                    }
+                                },
+                                "sink": {
+                                    "type": "BinarySink",
+                                    "storeSettings": {
+                                        "type": "AzureBlobStorageWriteSettings"
+                                    }
+                                },
+                                "enableStaging": false
+                            },
+                            "inputs": [
+                                {
+                                    "referenceName": "Binary1",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "fileName": {
+                                            "value": "@item().name",
+                                            "type": "Expression"
+                                        },
+                                        "folderPath": "incoming"
+                                    }
+                                }
+                            ],
+                            "outputs": [
+                                {
+                                    "referenceName": "Binary1",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "fileName": {
+                                            "value": "@item().name",
+                                            "type": "Expression"
+                                        },
+                                        "folderPath": "intermediate"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        ],
+        "annotations": [],
+        "lastPublishTime": "2025-08-28T18:34:23Z"
+    },
+    "type": "Microsoft.DataFactory/factories/pipelines"
+}

@@ -1,0 +1,135 @@
+{
+    "properties": {
+        "provisioningState": "Succeeded",
+        "createdTime": "2025-08-26T06:55:47.4669153Z",
+        "changedTime": "2025-08-26T09:51:55.7921217Z",
+        "state": "Enabled",
+        "version": "08584454049696955322",
+        "accessEndpoint": "https://<logic-app-endpoint>",
+        "definition": {
+            "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+            "contentVersion": "1.0.0.0",
+            "parameters": {
+                "$connections": {
+                    "defaultValue": {},
+                    "type": "Object"
+                }
+            },
+            "triggers": {
+                "When_a_HTTP_request_is_received": {
+                    "type": "Request",
+                    "kind": "Http",
+                    "inputs": {
+                        "schema": {
+                            "properties": {
+                                "status": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "conditions": [],
+                    "description": ""
+                }
+            },
+            "actions": {
+                "Condition": {
+                    "actions": {
+                        "Send_an_email_(V2)": {
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['outlook']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "body": {
+                                    "To": "<recipient-email>",
+                                    "Subject": "✅ Daily sales data successfully processed.",
+                                    "Body": "<p class=\"editor-paragraph\">The sales data validation was successful.</p>",
+                                    "Importance": "Normal"
+                                },
+                                "path": "/v2/Mail"
+                            }
+                        }
+                    },
+                    "runAfter": {},
+                    "else": {
+                        "actions": {
+                            "Send_an_email_(V2)_1": {
+                                "type": "ApiConnection",
+                                "inputs": {
+                                    "host": {
+                                        "connection": {
+                                            "name": "@parameters('$connections')['outlook']['connectionId']"
+                                        }
+                                    },
+                                    "method": "post",
+                                    "body": {
+                                        "To": "<recipient-email>",
+                                        "Subject": "❌ Error: Sales data validation failed.",
+                                        "Body": "<p class=\"editor-paragraph\">Please check the sales data validation logs.</p>",
+                                        "Importance": "Normal"
+                                    },
+                                    "path": "/v2/Mail"
+                                }
+                            }
+                        }
+                    },
+                    "expression": {
+                        "and": [
+                            {
+                                "equals": [
+                                    "@triggerBody()?['status']",
+                                    "success"
+                                ]
+                            }
+                        ]
+                    },
+                    "type": "If"
+                }
+            },
+            "outputs": {}
+        },
+        "parameters": {
+            "$connections": {
+                "value": {
+                    "outlook": {
+                        "id": "/subscriptions/<subscription-id>/providers/Microsoft.Web/locations/<region>/managedApis/outlook",
+                        "connectionId": "/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.Web/connections/outlook",
+                        "connectionName": "outlook"
+                    }
+                }
+            }
+        },
+        "endpointsConfiguration": {
+            "workflow": {
+                "outgoingIpAddresses": [
+                    {
+                        "address": "<ip-address>"
+                    }
+                ],
+                "accessEndpointIpAddresses": [
+                    {
+                        "address": "<ip-address>"
+                    }
+                ]
+            },
+            "connector": {
+                "outgoingIpAddresses": [
+                    {
+                        "address": "<ip-address>"
+                    }
+                ]
+            }
+        }
+    },
+    "id": "/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.Logic/workflows/<workflow-name>",
+    "name": "<workflow-name>",
+    "type": "Microsoft.Logic/workflows",
+    "location": "<region>",
+    "tags": {},
+    "apiVersion": "2015-08-01-preview"
+}
