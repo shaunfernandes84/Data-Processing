@@ -1,0 +1,4 @@
+TransactionID,ProductName,Quantity,Amount,SaleDate
+1001,Laptop,2,1500.0,2025-03-12
+1002,Mobile Phone,5,3000.0,2025-03-12
+1003,Headphones,3,0.0,2025-03-12
