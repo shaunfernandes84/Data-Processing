@@ -33,3 +33,8 @@ Blob Storage → Data Factory → Azure Function (validation) → Logic Apps (no
 - Returns `"Passed"` or `"Invalid"`
 
 ## 📊 Sample Data
+
+TransactionID,ProductName,Quantity,Amount,SaleDate
+1001,Laptop,2,1500.00,2025-03-12
+1002,Mobile Phone,5,3000.00,2025-03-12
+1003,Headphones,3,0,2025-03-12
